@@ -1,6 +1,6 @@
 # clarity — Design
 
-Last updated: 2026-08-25 (v0.2.0 — Phase 2: server, web UI, fast mode)
+Last updated: 2026-08-25 (v0.3.0 — job-based API, live progress, all-sentences view)
 
 ## Goal
 
@@ -134,6 +134,24 @@ highlighting is free.
     UI works offline. The UI escapes all rendered text (`esc()`) — pasted
     content is untrusted input. Dark-mode support via `prefers-color-scheme`;
     keyboard: ⌘/Ctrl+Enter to analyze; `aria-live` status region.
+
+11. **Job-based analysis with real progress.** (v0.3.0) Inference takes
+    ~10–30s, far too long for a silent spinner. `/analyze` therefore creates
+    a job (background thread, inference still serialized behind one lock) and
+    returns a `job_id`; the client polls `GET /analyze/{id}` for
+    `{state, progress, stage, result}`. Progress percentages come from INSIDE
+    the engine — `analyze()` and `score_text()` accept an optional
+    `progress(pct, stage)` callback — so the bar tracks actual work
+    (tokenize → model passes → per-sentence scoring → report), not a fake
+    timer. Completed jobs are pruned after 32.
+
+12. **Show every sentence, shade all three labels.** (v0.3.0) Previously only
+    flagged sentences were visually distinct; "human" sentences were unstyled
+    and their scores hidden. Since the whole point is inspectable evidence,
+    the heatmap now colors ALL sentences (red/yellow/light-green) with a
+    score chip per sentence (≈ = neighbor-blended), plus a per-sentence table
+    with reasons. Human shading is deliberately LIGHT green: it must never
+    read as endorsement or high confidence — it just makes the score visible.
 
 ## Testing strategy
 

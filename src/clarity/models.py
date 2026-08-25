@@ -68,13 +68,25 @@ class ModelPair:
         self.performer = _load_model(self.performer_name, self.device)
 
     @torch.inference_mode()
-    def score_text(self, text: str) -> tuple[TokenScores, bool]:
-        """Run both models over the text once. Returns (scores, truncated)."""
+    def score_text(self, text: str, progress=None) -> tuple[TokenScores, bool]:
+        """Run both models over the text once. Returns (scores, truncated).
+
+        `progress(pct, stage)` is called between stages when provided:
+        observer pass maps to 10-40%, performer pass to 40-70%.
+        """
         enc = self._encode(text)
         input_ids = enc.input_ids.to(self.device)
         attn = enc.attention_mask.to(self.device)
+
+        def _pct(p, s):
+            if progress is not None:
+                progress(p, s)
+
+        _pct(10, "scoring with observer model")
         obs_logits = self.observer(input_ids, attention_mask=attn).logits[0]
+        _pct(40, "scoring with performer model")
         perf_logits = self.performer(input_ids, attention_mask=attn).logits[0]
+        _pct(70, "combining model outputs")
         offsets = [tuple(o) for o in enc.offset_mapping[0].tolist()]
         scores = token_scores(
             obs_logits.cpu(), perf_logits.cpu(), input_ids[0].cpu(), offsets
@@ -106,14 +118,18 @@ class FastModel:
         self.model = _load_model(self.model_name, self.device)
 
     @torch.inference_mode()
-    def score_text(self, text: str) -> tuple[TokenScores, bool]:
+    def score_text(self, text: str, progress=None) -> tuple[TokenScores, bool]:
         """One forward pass. Returns TokenScores where log_xppl carries the
         fast-mode DENOMINATOR (so binoculars_score's ratio shape still works:
-        mean(log_ppl)/mean(denominator))."""
+        mean(log_ppl)/mean(denominator)). Progress maps the pass to 10-70%."""
         enc = self._encode(text)
         input_ids = enc.input_ids.to(self.device)
         attn = enc.attention_mask.to(self.device)
+        if progress is not None:
+            progress(10, "scoring with model")
         logits = self.model(input_ids, attention_mask=attn).logits[0]
+        if progress is not None:
+            progress(70, "combining outputs")
         offsets = [tuple(o) for o in enc.offset_mapping[0].tolist()]
         num, den = fast_detect_scores(logits, input_ids[0])
         scores = TokenScores(

@@ -111,9 +111,16 @@ def analyze(
     scorer,  # ModelPair (binoculars) or FastModel (fast); duck-typed on .score_text()
     threshold_low: float = DEFAULT_THRESHOLD_LOW,
     threshold_high: float = DEFAULT_THRESHOLD_HIGH,
+    progress=None,  # optional callable(progress_pct: int, stage: str)
 ) -> Report:
-    scores, truncated = scorer.score_text(text)
+    def _report(pct: int, stage: str) -> None:
+        if progress is not None:
+            progress(pct, stage)
+
+    _report(2, "tokenizing")
+    scores, truncated = scorer.score_text(text, progress=lambda p, s: _report(p, s))
     mode = getattr(scorer, "mode", "binoculars")
+    _report(80, "aggregating")
     n_tokens = scores.log_ppl.numel()
     doc_score = binoculars_score(scores)
     spans = map_sentences_to_tokens(text, scores.offsets)
@@ -123,7 +130,9 @@ def analyze(
     ]
 
     sentences: list[SentenceReport] = []
+    n_spans = max(1, len(spans))
     for i, span in enumerate(spans):
+        _report(80 + int(15 * i / n_spans), "scoring sentences")
         b_start, b_end, blended = _blended_span(spans, i, BLEND_MIN_TOKENS)
         score = binoculars_score(scores, b_start, b_end)
         raw = (
@@ -159,6 +168,7 @@ def analyze(
             )
         )
 
+    _report(97, "building report")
     return Report(
         doc_score=doc_score,
         doc_label=_label(doc_score, threshold_low, threshold_high),

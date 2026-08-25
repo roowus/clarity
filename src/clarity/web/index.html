@@ -10,13 +10,14 @@
     --muted-fg: #475569; --accent: #2563EB;
     --ai-bg: #DC2626; --ai-fg: #FFFFFF;
     --unc-bg: #FDE047; --unc-fg: #713F12;
-    --human-bg: transparent; --human-fg: inherit;
+    --human-bg: #DCFCE7; --human-fg: #14532D; /* light green tint for human sentences */
     --radius: 10px;
   }
   @media (prefers-color-scheme: dark) {
     :root {
       --bg: #0B1120; --fg: #E2E8F0; --card: #1E293B; --border: #334155;
       --muted-fg: #94A3B8;
+      --human-bg: #14321F; --human-fg: #BBF7D0;
       --unc-bg: #854D0E; --unc-fg: #FEF3C7;
       --ai-bg: #991B1B; --ai-fg: #FEE2E2;
     }
@@ -56,8 +57,27 @@
   .mode-toggle input:checked + span { color: var(--fg); font-weight: 600; }
   .mode-toggle label:has(input:checked) { background: var(--card); color: var(--fg); }
   .mode-toggle input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; display: inline-block; border-radius: 6px; }
-  .status { font-size: 0.88rem; color: var(--muted-fg); min-height: 1.3em; }
-  .status.error { color: #DC2626; font-weight: 500; }
+
+  /* progress */
+  #progressWrap { display: none; margin-top: 16px; }
+  .progress-track {
+    height: 10px; background: var(--card); border: 1px solid var(--border);
+    border-radius: 999px; overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%; width: 0%; background: var(--accent); border-radius: 999px;
+    transition: width 0.4s ease;
+  }
+  .progress-fill.indeterminate {
+    width: 35%; animation: slide 1.2s ease-in-out infinite alternate;
+  }
+  @keyframes slide { from { margin-left: 0; } to { margin-left: 65%; } }
+  @media (prefers-reduced-motion: reduce) {
+    .progress-fill.indeterminate { animation: none; }
+    button, .sent, .progress-fill { transition: none; }
+  }
+  #stage { font-size: 0.88rem; color: var(--muted-fg); margin-top: 6px; min-height: 1.3em; }
+  #stage.error { color: #DC2626; font-weight: 500; }
 
   /* verdict card */
   #verdict {
@@ -71,32 +91,52 @@
     border-left: 3px solid var(--border); padding-left: 10px;
   }
 
-  /* heatmap */
+  /* heatmap — every sentence gets a chip with its score */
   #heatmap {
     margin-top: 16px; background: var(--card); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 18px 20px; line-height: 1.9;
+    border-radius: var(--radius); padding: 18px 20px; line-height: 2.1;
   }
-  .sent { border-radius: 4px; padding: 1px 2px; transition: box-shadow 0.2s ease; }
+  .sent {
+    border-radius: 4px; padding: 2px 3px; transition: box-shadow 0.2s ease;
+    cursor: default; white-space: pre-wrap;
+  }
   .sent.ai { background: var(--ai-bg); color: var(--ai-fg); }
   .sent.uncertain { background: var(--unc-bg); color: var(--unc-fg); }
-  .sent:hover { box-shadow: 0 0 0 2px var(--accent); cursor: default; }
-
-  /* evidence panel */
-  #evidence { display: none; margin-top: 14px; }
-  .ev-item {
-    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
-    padding: 12px 16px; margin-bottom: 8px;
+  .sent.human { background: var(--human-bg); color: var(--human-fg); }
+  .sent:hover { box-shadow: 0 0 0 2px var(--accent); }
+  .score-chip {
+    font-family: ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 0.72rem; font-weight: 700;
+    border-radius: 999px; padding: 1px 7px; margin-left: 5px;
+    vertical-align: middle; user-select: none;
+    background: transparent; border: 1px solid currentColor; opacity: 0.75;
   }
-  .ev-item .quote { font-size: 0.86rem; color: var(--muted-fg); font-style: italic;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .ev-item .score-chip { float: right; font-size: 0.78rem; font-weight: 600;
-    border-radius: 999px; padding: 2px 10px; }
-  .chip.ai { background: var(--ai-bg); color: var(--ai-fg); }
-  .chip.uncertain { background: var(--unc-bg); color: var(--unc-fg); }
-  .ev-item ul { margin: 8px 0 0; padding-left: 20px; }
-  .ev-item li { font-size: 0.88rem; margin-bottom: 4px; }
+  .legend {
+    display: flex; gap: 14px; flex-wrap: wrap; margin-top: 12px;
+    font-size: 0.78rem; color: var(--muted-fg);
+  }
+  .legend .swatch {
+    display: inline-block; width: 12px; height: 12px; border-radius: 3px;
+    vertical-align: -1px; margin-right: 4px; border: 1px solid var(--border);
+  }
+
+  /* per-sentence table */
+  #table-section { display: none; margin-top: 14px; }
+  #table-section h2 { font-size: 0.95rem; margin: 0 0 8px; }
+  table { width: 100%; border-collapse: collapse; background: var(--card);
+    border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); font-size: 0.86rem; }
+  th { color: var(--muted-fg); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-family: ui-monospace, "SF Mono", Menlo, monospace; white-space: nowrap; }
+  td .tag { border-radius: 999px; padding: 1px 9px; font-size: 0.74rem; font-weight: 700; }
+  td .tag.ai { background: var(--ai-bg); color: var(--ai-fg); }
+  td .tag.uncertain { background: var(--unc-bg); color: var(--unc-fg); }
+  td .tag.human { background: var(--human-bg); color: var(--human-fg); }
+  tr.blended td.num span::after { content: " ≈"; opacity: 0.6; }
+  td .why { color: var(--muted-fg); font-size: 0.82rem; }
+
   footer { margin-top: 28px; font-size: 0.8rem; color: var(--muted-fg); text-align: center; }
-  a { color: var(--accent); }
 </style>
 </head>
 <body>
@@ -114,7 +154,11 @@
       <label><input type="radio" name="mode" value="binoculars" checked><span>Binoculars (2 models)</span></label>
       <label><input type="radio" name="mode" value="fast"><span>Fast (1 model)</span></label>
     </span>
-    <span id="status" class="status" aria-live="polite"></span>
+  </div>
+
+  <div id="progressWrap">
+    <div class="progress-track"><div id="progressFill" class="progress-fill"></div></div>
+    <div id="stage" aria-live="polite"></div>
   </div>
 
   <section id="verdict" aria-live="polite">
@@ -125,18 +169,33 @@
   </section>
 
   <section id="heatmap" aria-label="Sentence-level heatmap"></section>
-  <section id="evidence" aria-label="Evidence for flagged sentences"></section>
+  <div class="legend" id="legend" style="display:none">
+    <span><span class="swatch" style="background:var(--ai-bg)"></span>likely AI-generated</span>
+    <span><span class="swatch" style="background:var(--unc-bg)"></span>uncertain</span>
+    <span><span class="swatch" style="background:var(--human-bg)"></span>likely human-written</span>
+    <span>chip = blended score (≈ marks a score that leaned on neighboring sentences)</span>
+  </div>
 
-  <footer>clarity v0.2.0 · Binoculars (Hans et al., ICML 2024) · local-first &amp; open source</footer>
+  <section id="table-section" aria-label="Per-sentence scores and reasons">
+    <h2>Sentences</h2>
+    <table>
+      <thead><tr><th>#</th><th>Sentence</th><th>Score</th><th>Label</th><th>Why flagged</th></tr></thead>
+      <tbody id="rows"></tbody>
+    </table>
+  </section>
+
+  <footer>clarity v0.3.0 · Binoculars (Hans et al., ICML 2024) · local-first &amp; open source</footer>
 </div>
 <script>
 const $ = (id) => document.getElementById(id);
-const input = $("input"), go = $("go"), statusEl = $("status");
+const input = $("input"), go = $("go");
+const progressWrap = $("progressWrap"), fill = $("progressFill"), stageEl = $("stage");
 const LABELS = {
   ai: "Likely AI-generated",
   uncertain: "Uncertain",
   human: "Likely human-written",
 };
+let pollTimer = null;
 
 function setMode(mode) {
   document.querySelectorAll('.mode-toggle input').forEach(r => { r.checked = r.value === mode; });
@@ -144,35 +203,61 @@ function setMode(mode) {
 document.querySelectorAll('.mode-toggle input').forEach(r =>
   r.addEventListener('change', () => location.hash = 'mode=' + r.value));
 
-async function analyze() {
+function setProgress(pct, stageText) {
+  progressWrap.style.display = "block";
+  if (pct == null) {                       // indeterminate: waiting in queue etc.
+    fill.classList.add("indeterminate");
+  } else {
+    fill.classList.remove("indeterminate");
+    fill.style.width = Math.max(2, pct) + "%";
+  }
+  stageEl.className = "";
+  stageEl.textContent = stageText || "";
+}
+
+function analyze() {
   const text = input.value.trim();
-  if (!text) { statusEl.textContent = "Paste some text first."; return; }
+  if (!text) { setProgress(100, "Paste some text first."); return; }
   const mode = document.querySelector('.mode-toggle input:checked').value;
   go.disabled = true;
-  statusEl.className = "status";
-  statusEl.textContent = mode === "fast"
-    ? "Scoring (single model pass)…"
-    : "Scoring (two model passes)…";
-  try {
-    const res = await fetch("/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ text, mode }),
+  $("verdict").style.display = "none";
+  $("heatmap").style.display = "none";
+  $("legend").style.display = "none";
+  $("table-section").style.display = "none";
+  setProgress(null, "Queued…");
+  fetch("/analyze", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ text, mode }),
+  })
+    .then(async res => {
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || `HTTP ${res.status}`);
+      return res.json();
+    })
+    .then(({ job_id }) => poll(job_id));
+}
+
+function poll(jobId) {
+  pollTimer = setTimeout(() => poll(jobId), 500);
+  fetch(`/analyze/${jobId}`)
+    .then(async res => {
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).detail || `HTTP ${res.status}`);
+      return res.json();
+    })
+    .then(j => {
+      if (j.state === "error") throw new Error(j.error);
+      if (j.state === "running") { setProgress(j.progress, j.stage); return; }
+      clearTimeout(pollTimer);
+      go.disabled = false;
+      render(j.result);
+    })
+    .catch(err => {
+      clearTimeout(pollTimer);
+      go.disabled = false;
+      setProgress(100, err.message === "Failed to fetch"
+        ? "Server unreachable — is clarity-server running?" : "Error: " + err.message);
+      stageEl.className = "error";
     });
-    if (!res.ok) {
-      const detail = await res.json().catch(() => ({}));
-      throw new Error(detail.detail || `HTTP ${res.status}`);
-    }
-    render(await res.json());
-    statusEl.textContent = "";
-  } catch (err) {
-    statusEl.className = "status error";
-    statusEl.textContent = err.message === "Failed to fetch"
-      ? "Server unreachable — is clarity-server running?"
-      : "Error: " + err.message;
-  } finally {
-    go.disabled = false;
-  }
 }
 
 function esc(s) {
@@ -180,47 +265,54 @@ function esc(s) {
 }
 
 function render(r) {
+  progressWrap.style.display = "none";
+
   const v = $("verdict");
   v.style.display = "block";
   v.querySelector(".label").textContent =
     `${LABELS[r.doc_label]} — ${r.mode === "fast" ? "fast mode" : "binoculars"}`;
   v.querySelector(".meta").textContent =
     `score ${r.doc_score.toFixed(3)} · AI < ${r.thresholds.low}, human > ${r.thresholds.high} · ${r.n_tokens} tokens`;
-
   const notes = [];
   if (!r.reliable) notes.push(`only ${r.n_tokens} tokens — too short for a reliable verdict`);
   if (r.truncated) notes.push("text was truncated at the scoring window");
-  v.querySelector(".caveat").textContent = notes.length
-    ? "⚠ " + notes.join("; ") + ". " : "";
+  v.querySelector(".caveat").textContent =
+    (notes.length ? "⚠ " + notes.join("; ") + ". " : "") +
+    "No detector is proof — treat this as a lead to investigate, never a verdict on a person." +
+    " False positives disproportionately affect non-native English writers.";
 
+  // Heatmap: EVERY sentence rendered, colored by label, chip showing its score.
   const hm = $("heatmap");
   hm.style.display = "block";
   hm.innerHTML = "";
   r.sentences.forEach(s => {
     const span = document.createElement("span");
     span.className = "sent " + s.label;
-    span.innerHTML = esc(s.text) + " ";
+    span.innerHTML = esc(s.text.trim()) +
+      `<span class="score-chip">${s.score.toFixed(2)}${s.blended ? "≈" : ""}</span>`;
     hm.appendChild(span);
+    hm.appendChild(document.createTextNode(" "));
   });
+  $("legend").style.display = "flex";
 
-  const ev = $("evidence");
-  ev.style.display = "block";
-  ev.innerHTML = "";
-  const flagged = r.sentences.filter(s => s.signals.length);
-  if (flagged.length) {
-    flagged.forEach(s => {
-      const div = document.createElement("div");
-      div.className = "ev-item";
-      div.innerHTML =
-        `<span class="score-chip chip ${s.label}">${s.score.toFixed(3)}</span>` +
-        `<div class="quote">${esc(s.text)}</div><ul>` +
-        s.signals.map(g => `<li>${esc(g.detail)}</li>`).join("") +
-        `</ul>`;
-      ev.appendChild(div);
-    });
-  } else {
-    ev.innerHTML = '<div class="ev-item">No evidence signals fired — no sentence scored in the AI range.</div>';
-  }
+  // Table: one row per sentence — score, label, reasons.
+  const tb = $("rows");
+  tb.innerHTML = "";
+  r.sentences.forEach((s, i) => {
+    const tr = document.createElement("tr");
+    if (s.blended) tr.className = "blended";
+    const why = s.signals.length
+      ? s.signals.map(g => esc(g.detail)).join("<br>")
+      : '<span class="why">— no signals fired —</span>';
+    tr.innerHTML =
+      `<td class="num">${i + 1}${s.blended ? "≈" : ""}</td>` +
+      `<td>${esc(s.text.trim())}</td>` +
+      `<td class="num">${s.score.toFixed(3)}</td>` +
+      `<td><span class="tag ${s.label}">${s.label}</span></td>` +
+      `<td>${why}</td>`;
+    tb.appendChild(tr);
+  });
+  $("table-section").style.display = "block";
 }
 
 go.addEventListener("click", analyze);
@@ -232,9 +324,13 @@ if (hashMode === "fast") setMode("fast");
 fetch("/api/health").then(h => h.json()).then(h => {
   if (h.mode !== (hashMode || "binoculars")) setMode(h.mode);
 }).catch(() => {});
-// Shareable links: ?text=... prefills and auto-runs the analysis.
-const linkText = new URLSearchParams(location.search).get("text");
-if (linkText) { input.value = linkText; analyze(); }
+const params = new URLSearchParams(location.search);
+const sharedText = params.get("text");
+if (sharedText) {
+  input.value = sharedText;
+  history.replaceState(null, "", location.pathname + location.hash);  // strip the long URL
+  analyze();
+}
 </script>
 </body>
 </html>

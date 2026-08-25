@@ -2,11 +2,14 @@
 
 `clarity-server` (or `clarity serve`) starts a local server that:
 - serves the web UI at /  (static file from clarity/web/index.html)
-- POST /analyze {"text": ..., "mode": "binoculars"|"fast"} → Report JSON
+- POST /analyze {"text": ...} → {"job_id"} (returns immediately)
+- GET  /analyze/{job_id} → {"state", "progress", "stage", "result"|"error"}
 - GET /api/health → model/device status
 
-Models load ONCE at startup and stay warm. This is a LOCAL-FIRST tool: bind
-localhost by default; --host exposes it deliberately.
+Analysis runs in a background worker thread; clients poll for progress so the
+UI can show a real progress bar during the ~10-30s inference. Models load ONCE
+at startup and stay warm. This is a LOCAL-FIRST tool: bind localhost by
+default; --host exposes it deliberately.
 """
 
 from __future__ import annotations
@@ -14,6 +17,7 @@ from __future__ import annotations
 import argparse
 import sys
 import threading
+import uuid
 from pathlib import Path
 
 from pydantic import BaseModel, Field
@@ -28,6 +32,9 @@ from .detector import (
 from .models import ModelPair, FastModel
 
 WEB_DIR = Path(__file__).parent / "web"
+
+# Jobs are small dicts; prune completed ones older than this many entries.
+MAX_FINISHED_JOBS = 32
 
 
 class AnalyzeBody(BaseModel):
@@ -59,9 +66,52 @@ def create_app(
             kwargs["performer_name"] = performer
         scorer = ModelPair(**kwargs)
 
-    app = FastAPI(title="clarity", version="0.2.0")
-    state = {"scorer": scorer, "mode": mode}
+    app = FastAPI(title="clarity", version="0.3.0")
+    state = {
+        "scorer": scorer,
+        "mode": mode,
+        "jobs": {},  # job_id -> {"state", "progress", "stage", "result"/"error"}
+        "order": [],  # completion order for pruning
+    }
+    # Serialize inference: concurrent MPS/CUDA forward passes contend and can
+    # multiply latency (hit during testing). Jobs queue on this lock.
     inference_lock = threading.Lock()
+
+    def _prune_jobs() -> None:
+        jobs = state["jobs"]
+        while len(state["order"]) > MAX_FINISHED_JOBS:
+            old = state["order"].pop(0)
+            jobs.pop(old, None)
+
+    def _run_job(job_id: str, body: AnalyzeBody) -> None:
+        job = state["jobs"][job_id]
+
+        def progress(pct: int, stage: str) -> None:
+            job["progress"], job["stage"] = pct, stage
+
+        try:
+            with inference_lock:
+                report = analyze(
+                    body.text,
+                    scorer,
+                    threshold_low=body.threshold_low
+                    if body.threshold_low is not None
+                    else (
+                        FAST_THRESHOLD_LOW if state["mode"] == "fast" else DEFAULT_THRESHOLD_LOW
+                    ),
+                    threshold_high=body.threshold_high
+                    if body.threshold_high is not None
+                    else (
+                        FAST_THRESHOLD_HIGH if state["mode"] == "fast" else DEFAULT_THRESHOLD_HIGH
+                    ),
+                    progress=progress,
+                )
+        except Exception as exc:  # noqa: BLE001 — surfaced verbatim to the local client
+            job["state"], job["error"] = "error", str(exc)
+            return
+        job["state"], job["result"] = "done", report.to_dict()
+        state["order"].append(job_id)
+        _prune_jobs()
 
     @app.get("/api/health")
     def health() -> dict:
@@ -74,35 +124,23 @@ def create_app(
         }
 
     @app.post("/analyze")
-    def do_analyze(body: AnalyzeBody) -> dict:
-        # Serialize inference: concurrent MPS/CUDA forward passes from the
-        # threadpool contend and can multiply latency (hit during testing).
-        with inference_lock:
-            return _do_analyze_locked(body)
+    def start_analysis(body: AnalyzeBody) -> dict:
+        job_id = uuid.uuid4().hex[:12]
+        state["jobs"][job_id] = {"state": "running", "progress": 1, "stage": "queued"}
+        threading.Thread(target=_run_job, args=(job_id, body), daemon=True).start()
+        return {"job_id": job_id}
 
-    def _do_analyze_locked(body: AnalyzeBody) -> dict:
-        try:
-            report = analyze(
-                body.text,
-                state["scorer"],
-                threshold_low=body.threshold_low
-                if body.threshold_low is not None
-                else (
-                    FAST_THRESHOLD_LOW
-                    if state["mode"] == "fast"
-                    else DEFAULT_THRESHOLD_LOW
-                ),
-                threshold_high=body.threshold_high
-                if body.threshold_high is not None
-                else (
-                    FAST_THRESHOLD_HIGH
-                    if state["mode"] == "fast"
-                    else DEFAULT_THRESHOLD_HIGH
-                ),
-            )
-        except ValueError as exc:
-            raise HTTPException(status_code=422, detail=str(exc)) from exc
-        return report.to_dict()
+    @app.get("/analyze/{job_id}")
+    def poll(job_id: str) -> dict:
+        job = state["jobs"].get(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail="unknown job id")
+        out = {"state": job["state"], "progress": job["progress"], "stage": job["stage"]}
+        if job["state"] == "done":
+            out["result"] = job["result"]
+        elif job["state"] == "error":
+            out["error"] = job["error"]
+        return out
 
     @app.get("/")
     def index() -> FileResponse:

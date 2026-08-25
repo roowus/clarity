@@ -68,16 +68,21 @@ clarity-server                  # http://127.0.0.1:8390 — models load once, st
 # options: --mode fast · --host 0.0.0.0 to expose beyond localhost · --port N
 ```
 
-Then open the printed URL: paste text, hit Analyze (or ⌘/Ctrl+Enter), get the
-document verdict card, per-sentence heatmap, and evidence list. Programmatic
-clients hit the same API:
+Then open the printed URL: paste text, hit Analyze (or ⌘/Ctrl+Enter), and
+watch a live progress bar track the real scoring stages. The results view shows
+the document verdict, a heatmap where **every** sentence is colored and carries
+its score chip, and a per-sentence table with reasons for anything flagged.
+Programmatic clients use the job API:
 
 ```bash
-curl -X POST localhost:8390/analyze \
+JOB=$(curl -s -X POST localhost:8390/analyze \
      -H 'Content-Type: application/json' \
-     -d '{"text": "some text", "mode": "binoculars"}'
-# → full Report JSON (doc verdict + per-sentence scores/signals)
-curl localhost:8390/api/health   # model/device status
+     -d '{"text": "some text", "mode": "binoculars"}' | jq -r .job_id)
+# poll while it runs — progress/stage update live:
+curl localhost:8390/analyze/$JOB      # → {state, progress, stage}
+# when state == "done", the same endpoint returns `result`:
+#   full Report JSON (doc verdict + every sentence's score/label/signals)
+curl localhost:8390/api/health        # model/device status
 ```
 
 The server binds **127.0.0.1 by default** — this is a personal-analysis tool;

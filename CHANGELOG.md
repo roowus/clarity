@@ -4,6 +4,20 @@ Format: Keep a Changelog. Versions: semver. Every behavioral change lands here
 in the same commit that changes the behavior.
 
 ## [Unreleased]
+### Added
+- **Live progress bar** during analysis: `/analyze` is now job-based — POST
+  returns a `job_id` immediately, `GET /analyze/{id}` polls
+  `{state, progress, stage, result}`. Progress reflects REAL stages
+  (tokenize → observer pass → performer pass → sentence scoring → report),
+  reported from inside the engine via an optional `progress` callback on
+  `analyze()` and both scorers' `score_text()`. The UI shows a determinate
+  bar + stage text (indeterminate only while queued); respects
+  prefers-reduced-motion.
+- **Every sentence shown**: results now render ALL sentences — each carries a
+  score chip in the heatmap (≈ marks neighbor-blended scores), human sentences
+  get a light-green tint (previously invisible/unstyled), and a per-sentence
+  table (# / sentence / score / label / why-flagged) replaces the old
+  flagged-only evidence list.
 
 ## [0.2.0] — 2026-08-25 (Phase 2)
 ### Added

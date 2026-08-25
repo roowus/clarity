@@ -10,11 +10,13 @@ from .models import ModelPair
 from .scoring import TokenScores, binoculars_score, mean_log_ppl
 from .sentences import SentenceSpan, map_sentences_to_tokens
 
-# Calibrated on the Falcon pair in the paper; our default small pair tracks it
-# closely in smoke tests but MUST be recalibrated per pair for serious use —
-# see docs/CALIBRATION.md. Below low => confident AI; above high => confident human.
-DEFAULT_THRESHOLD_LOW = 0.85
-DEFAULT_THRESHOLD_HIGH = 0.92
+# Provisionally calibrated 2026-08-25 on the default Qwen2.5-1.5B pair via
+# scripts/calibrate_quick.py (10 AI docs vs 40 human stdlib docstrings):
+# low=0.905 keeps human FPR at 5%; high=1.11 sits above ~all AI docs.
+# Detection at that FPR is only ~40% — the 1.5B pair is convenience-grade.
+# Bigger pairs need recalibration; see docs/CALIBRATION.md for numbers and method.
+DEFAULT_THRESHOLD_LOW = 0.905
+DEFAULT_THRESHOLD_HIGH = 1.11
 
 MIN_RELIABLE_TOKENS = 50  # document verdicts below this are labeled unreliable
 BLEND_MIN_TOKENS = 30  # sentences shorter than this are blended with neighbors

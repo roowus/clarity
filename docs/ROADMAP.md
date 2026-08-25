@@ -19,8 +19,14 @@ Last updated: 2026-08-25
 - [ ] Fast-DetectGPT single-model mode (`--mode fast`) for low-RAM machines
 
 ## Phase 3 — Rigorous calibration & eval (the credibility phase)
-- [ ] `scripts/calibrate.py`: automated fixed-FPR thresholding from a
-      human corpus (RAID methodology)
+- [x] Quick provisional calibration shipped (2026-08-25):
+      `scripts/calibrate_quick.py` → thresholds 0.905/1.11 at 5% human FPR,
+      measured ~40% AI detection on the default pair (docs/CALIBRATION.md)
+- [ ] `scripts/calibrate.py`: automated fixed-FPR thresholding from a LARGE,
+      multi-register human corpus + multi-generator AI corpus (RAID methodology);
+      current numbers are n=10/n=40 single-register provisional
+- [ ] Candidate pair shootout: try Llama-3.2-3B, gemma-2-2b, Falcon-7B pairs;
+      ship per-pair calibrated defaults so BYO users get sane numbers free
 - [ ] Evaluate on RAID subsets (incl. adversarial: paraphrase, homoglyph);
       publish honest accuracy-at-5%-FPR numbers in the README
 - [ ] Per-pair calibration registry in `calibrations/`

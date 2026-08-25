@@ -48,9 +48,9 @@ First run downloads the default model pair (Qwen2.5-1.5B base + instruct,
 ## Usage
 
 ```bash
-telltale essay.txt              # rich terminal report
-echo "some text" | telltale -   # stdin
-telltale essay.txt --json       # machine-readable full report
+telltale examples/ai-slop.txt    # rich terminal report (try both examples/)
+echo "some text" | telltale -    # stdin
+telltale essay.txt --json        # machine-readable full report
 telltale essay.txt --observer meta-llama/Llama-3.2-3B-Instruct \
                     --performer meta-llama/Llama-3.2-3B   # bring your own pair
 ```
@@ -78,6 +78,12 @@ see [docs/CALIBRATION.md](docs/CALIBRATION.md).
 - **No detector is proof.** Treat output as a lead to investigate, never a
   verdict on a person. This tool deliberately shows its evidence so a human
   can disagree with it.
+- **The default model pair is convenience-grade.** Measured 2026-08-25
+  ([calibration](docs/CALIBRATION.md)): at a 5% human false-positive rate the
+  default Qwen2.5-1.5B pair detects only ~40% of AI documents. The Binoculars
+  paper's >90%-at-0.01%-FPR is for the Falcon-7B pair — bring a bigger pair on
+  GPU hardware for serious screening, and expect many "uncertain" labels on
+  the default pair.
 - False positives are real and **disproportionately hit non-native English
   writers** (documented across the literature, including for commercial tools).
 - Paraphrasing/humanizer tools reduce detection rates for every known method.

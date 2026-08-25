@@ -1,21 +1,43 @@
 # Calibration
 
-Last updated: 2026-08-25 (v0.1.0)
+Last updated: 2026-08-25 (post quick-calibration of v0.1.0)
 
-## Current state — be honest with yourself here
+## Current measured state (default Qwen2.5-1.5B pair)
 
-The default thresholds (`AI < 0.85`, `human > 0.92`) are **inherited from the
-Binoculars paper's Falcon-7B calibration** and sanity-checked with smoke tests
-on the default Qwen2.5-1.5B pair. They are NOT yet a rigorous calibration.
-Treat v0.1.0 verdicts accordingly. Rigorous calibration is Phase 3 on the
-roadmap (RAID subsets, fixed-FPR thresholding).
+Provisional quick calibration, 2026-08-25, via `scripts/calibrate_quick.py`:
+
+- **AI corpus:** 10 passages written by an LLM (Claude), varied registers,
+  ~60–140 tokens each.
+- **Human corpus:** 40 docstrings ≥300 chars from the local Python 3.12
+  standard library (pre-LLM, human-written).
+
+| | min | mean | max |
+| --- | --- | --- | --- |
+| AI scores | 0.836 | 0.944 | 1.107 |
+| human scores | 0.856 | 1.012 | 1.208 |
+
+**Shipped thresholds: `low = 0.905`, `high = 1.11`.**
+
+- At `low = 0.905`: **5% human FPR, ~40% AI detection**.
+- The distributions overlap substantially at this model size. Mean separation
+  exists (0.944 vs 1.012) but the 1.5B pair is **convenience-grade**: single-doc
+  verdicts are weak, and much genuinely-AI text will read "uncertain". The
+  paper's >90%-at-0.01%-FPR numbers are for the Falcon-7B pair.
+- This is why the tool leads with per-sentence *evidence*, not a verdict.
+
+**Known limitations of this calibration** (all fixed in Phase 3): tiny n,
+single register per class, AI corpus from one generator family (Claude),
+human corpus is technical rather than prose, thresholds not length-stratified.
+`high = 1.11` implies only ~12% of the human corpus earns a "human" label —
+honest for overlapping distributions, but better pairs/calibration will move it.
 
 ## Why thresholds are pair-specific
 
 The Binoculars score is a ratio of two model-dependent quantities. Different
-model pairs put human/AI text at different absolute score ranges. A threshold
-tuned on Falcon-7B is only approximately right for Qwen-1.5B and could be
-badly wrong for an arbitrary pair you bring.
+model pairs put human/AI text at different absolute score ranges — the paper's
+Falcon thresholds (0.85/0.9015) mislabel on the Qwen pair (measured 2026-08-25:
+a known-AI passage scored 0.963, above both Falcon cutoffs → "human"). Never
+reuse thresholds across pairs.
 
 ## The right way to threshold (RAID methodology)
 
@@ -29,7 +51,9 @@ false-positive rates. The RAID benchmark's methodology, which we adopt:
 
 ## Recalibrating for your own pair
 
-Until the automated script lands (Phase 3), the manual procedure:
+`scripts/calibrate_quick.py` gives provisional numbers in minutes (edit its
+`AI_DOCS`, or point `human_docs()` at your own corpus — stdlib docstrings are
+the default). For serious use, the manual procedure:
 
 ```bash
 # 1. Gather ≥500 known-human docs (pre-2020 text is safest) into human/*.txt

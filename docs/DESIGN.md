@@ -66,11 +66,13 @@ highlighting is free.
    over neighboring sentences until ≥30 tokens, and mark the sentence
    `blended: true` (raw score still reported in JSON).
 
-4. **Three-way labels, two thresholds** (ai < 0.85, human > 0.92, else
+4. **Three-way labels, two thresholds** (ai < 0.905, human > 1.11, else
    uncertain). A single cutoff manufactures false confidence near the
-   boundary. Defaults come from the paper's Falcon calibration and our smoke
-   tests on the default pair; see CALIBRATION.md for the recalibration
-   procedure and why RAID-style fixed-FPR thresholding is the end goal.
+   boundary. Defaults are empirically calibrated for the default pair
+   (2026-08-25 quick calibration, 5% human FPR; measured detection ~40% at
+   that FPR — the 1.5B pair is convenience-grade, see CALIBRATION.md for the
+   distributions and why the Falcon-paper thresholds must never be reused
+   across pairs).
 
 5. **Evidence signals are computed, never generated** (`evidence.py`).
    - `low_binoculars`: the span score itself, with the numbers.

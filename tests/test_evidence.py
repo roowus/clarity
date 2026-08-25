@@ -1,4 +1,4 @@
-from telltale.evidence import sentence_signals
+from clairity.evidence import sentence_signals
 
 
 def _base(**kw):

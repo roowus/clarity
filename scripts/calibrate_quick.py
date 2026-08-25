@@ -17,7 +17,7 @@ import io
 import tokenize
 from statistics import fmean
 
-from telltale import ModelPair, analyze
+from clairity import ModelPair, analyze
 
 N_HUMAN_DOCS = 40
 

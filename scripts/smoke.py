@@ -7,7 +7,7 @@ scores LOWER than the human-typical passage and prints both reports.
 
 import json
 
-from telltale import ModelPair, analyze
+from clairity import ModelPair, analyze
 
 # Human-typical: pre-LLM prose (Twain, 1883 — public domain), bursty and idiosyncratic.
 HUMAN = (

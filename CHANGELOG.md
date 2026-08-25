@@ -5,6 +5,9 @@ in the same commit that changes the behavior.
 
 ## [Unreleased]
 ### Changed
+- **Project renamed: telltale → clairity** (package, module paths, CLI name,
+  repo URL github.com/roowus/clairity — old links redirect). No behavioral
+  change; scores, thresholds, and output format are identical.
 - Default thresholds recalibrated for the Qwen2.5-1.5B pair: 0.905/1.11
   (5% human FPR, measured ~40% AI detection; the Falcon-paper defaults
   0.85/0.92 mislabeled a known-AI passage as human). Added

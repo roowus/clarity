@@ -1,4 +1,4 @@
-"""CLI: `telltale <file>` or `telltale -` for stdin. Rich terminal heatmap or --json."""
+"""CLI: `clairity <file>` or `clairity -` for stdin. Rich terminal heatmap or --json."""
 
 from __future__ import annotations
 
@@ -38,7 +38,7 @@ def render(report: Report, console: Console) -> None:
         caveats.append("text was truncated at the model's scoring window")
     if caveats:
         header += f"\n[yellow]⚠ {'; '.join(caveats)}[/yellow]"
-    console.print(Panel(header, title="telltale"))
+    console.print(Panel(header, title="clairity"))
 
     body = Text()
     for s in report.sentences:
@@ -62,7 +62,7 @@ def render(report: Report, console: Console) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
-    p = argparse.ArgumentParser(prog="telltale", description="Evidence-first AI-text detector")
+    p = argparse.ArgumentParser(prog="clairity", description="Evidence-first AI-text detector")
     p.add_argument("input", help="path to a text file, or '-' for stdin")
     p.add_argument("--observer", default=DEFAULT_OBSERVER, help="HF id of observer model")
     p.add_argument("--performer", default=DEFAULT_PERFORMER, help="HF id of performer model")

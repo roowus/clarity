@@ -1,0 +1,18 @@
+name: CI
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv venv -p 3.12
+      # CPU torch: CI never downloads model weights; tests cover the
+      # model-free layers only (see docs/DESIGN.md#testing-strategy).
+      - run: uv pip install torch --index-url https://download.pytorch.org/whl/cpu
+      - run: uv pip install -e ".[dev]"
+      - run: uv run pytest -q

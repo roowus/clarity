@@ -1,10 +1,11 @@
 # Calibration
 
-Last updated: 2026-08-25 (post quick-calibration of v0.1.0)
+Last updated: 2026-08-25 (v0.2.0 — added fast-mode numbers)
 
 ## Current measured state (default Qwen2.5-1.5B pair)
 
-Provisional quick calibration, 2026-08-25, via `scripts/calibrate_quick.py`:
+Provisional quick calibration, 2026-08-25, via `scripts/calibrate_quick.py`
+(runs both modes; pass `--mode fast` to score only fast):
 
 - **AI corpus:** 10 passages written by an LLM (Claude), varied registers,
   ~60–140 tokens each.
@@ -24,6 +25,21 @@ Provisional quick calibration, 2026-08-25, via `scripts/calibrate_quick.py`:
   verdicts are weak, and much genuinely-AI text will read "uncertain". The
   paper's >90%-at-0.01%-FPR numbers are for the Falcon-7B pair.
 - This is why the tool leads with per-sentence *evidence*, not a verdict.
+
+## Fast mode (EXPERIMENTAL) — same corpora, Qwen2.5-1.5B base model
+
+| | min | mean | max |
+| --- | --- | --- | --- |
+| AI scores | −108.8 | −11.2 | +62.8 |
+| human scores | −55.0 | +0.7 | +116.3 |
+
+**Shipped thresholds: `low = −41.86`, `high = 62.84`.** At that low threshold:
+**5% human FPR, only ~10% AI detection** — far weaker separation than
+binoculars mode. Our sampling-free approximation of Fast-DetectGPT
+(see `fast_detect.py`'s honesty note) is not the published estimator; it
+needs one forward pass instead of ~50 generations, and the measured cost is
+most of the discriminative power. Use only when RAM forbids the pair. A
+Phase 3/4 task: implement the true sampling estimator and re-evaluate.
 
 **Known limitations of this calibration** (all fixed in Phase 3): tiny n,
 single register per class, AI corpus from one generator family (Claude),

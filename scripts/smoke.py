@@ -1,13 +1,14 @@
 """Manual smoke test: real models, real texts. Run before releases.
 
-Usage: .venv/bin/python scripts/smoke.py
-Downloads the default pair on first run (~6 GB). Asserts the AI-typical passage
-scores LOWER than the human-typical passage and prints both reports.
+Usage: .venv/bin/python scripts/smoke.py [--fast-only]
+Downloads weights on first run (~3 GB fast / ~6 GB binoculars). Asserts the
+AI-typical passage scores LOWER than the human-typical passage in BOTH modes.
 """
 
 import json
+import sys
 
-from clarity import ModelPair, analyze
+from clarity import FastModel, ModelPair, analyze
 
 # Human-typical: pre-LLM prose (Twain, 1883 — public domain), bursty and idiosyncratic.
 HUMAN = (
@@ -36,19 +37,26 @@ AI = (
 )
 
 
-def main() -> None:
-    pair = ModelPair()
-    print(f"device: {pair.device}\n")
-    human_report = analyze(HUMAN, pair)
-    ai_report = analyze(AI, pair)
-    print(f"human passage: score={human_report.doc_score:.4f} label={human_report.doc_label}")
-    print(f"ai passage:    score={ai_report.doc_score:.4f} label={ai_report.doc_label}")
-    print("\nAI-passage sentence detail:")
-    print(json.dumps(ai_report.to_dict()["sentences"], indent=2)[:3000])
+def check(name: str, scorer) -> None:
+    human_report = analyze(HUMAN, scorer)
+    ai_report = analyze(AI, scorer)
+    print(f"[{name}] device={scorer.device}")
+    print(f"  human passage: score={human_report.doc_score:.4f} label={human_report.doc_label}")
+    print(f"  ai passage:    score={ai_report.doc_score:.4f} label={ai_report.doc_label}")
     assert ai_report.doc_score < human_report.doc_score, (
-        "SMOKE FAIL: AI passage did not score lower than human passage"
+        f"SMOKE FAIL ({name}): AI passage did not score lower than human passage"
     )
-    print("\nSMOKE PASS: AI passage scored lower than human passage")
+    if name == "binoculars":
+        print("  AI-passage sentence detail:")
+        print(json.dumps(ai_report.to_dict()["sentences"], indent=2)[:2500])
+    print(f"  SMOKE PASS ({name}): direction correct\n")
+
+
+def main() -> None:
+    check("binoculars", ModelPair())
+    if "--fast-only" not in sys.argv:
+        check("fast", FastModel())
+    print("ALL SMOKE TESTS PASSED")
 
 
 if __name__ == "__main__":

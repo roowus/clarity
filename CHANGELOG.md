@@ -4,6 +4,26 @@ Format: Keep a Changelog. Versions: semver. Every behavioral change lands here
 in the same commit that changes the behavior.
 
 ## [Unreleased]
+
+## [0.2.0] — 2026-08-25 (Phase 2)
+### Added
+- HTTP server + web UI: `clarity-server` (extras: `pip install -e ".[serve]"`)
+  serves a single-page interface at http://127.0.0.1:8390 — verdict card,
+  per-sentence heatmap, evidence list, mode toggle, dark mode, ⌘/Ctrl+Enter.
+  API: `POST /analyze {"text", "mode"}` → full Report JSON; `GET /api/health`.
+  Localhost-bound by default; models load once and stay warm — `serve.py`,
+  `web/index.html`.
+- Fast mode (`--mode fast` / server `--mode fast`, `FastModel`): single-model
+  experimental detector using a sampling-free Fast-DetectGPT approximation
+  (`fast_detect.py`). Own score scale; thresholds −41.86/62.84 from the same
+  quick calibration. Measured ~10% detection at 5% human FPR vs binoculars'
+  ~40% — documented as experimental, RAM-constrained use only.
+- Report JSON now includes `mode`. CLI gains `--mode`, `--model`, and optional
+  threshold flags (default to per-mode calibrated values).
+- 5 new unit tests (fast-mode math incl. degenerate-denominator guards).
+### Fixed
+- `serve.py`: AnalyzeBody moved to module level — closure-local pydantic
+  classes break FastAPI body detection (field silently becomes a query param).
 ### Changed
 - **Project renamed: telltale → clarity** (briefly misspelled "clairity" in
   an intermediate commit; package, module paths, CLI name, and repo URL all

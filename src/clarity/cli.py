@@ -62,14 +62,27 @@ def render(report: Report, console: Console) -> None:
 
 
 def main(argv: list[str] | None = None) -> int:
+    from .detector import FAST_THRESHOLD_HIGH, FAST_THRESHOLD_LOW
+    from .models import DEFAULT_FAST_MODEL, FastModel
+
     p = argparse.ArgumentParser(prog="clarity", description="Evidence-first AI-text detector")
     p.add_argument("input", help="path to a text file, or '-' for stdin")
+    p.add_argument(
+        "--mode", choices=["binoculars", "fast"], default="binoculars",
+        help="binoculars = 2-model paper method; fast = 1-model approximation (less RAM)",
+    )
     p.add_argument("--observer", default=DEFAULT_OBSERVER, help="HF id of observer model")
     p.add_argument("--performer", default=DEFAULT_PERFORMER, help="HF id of performer model")
-    p.add_argument("--threshold-low", type=float, default=DEFAULT_THRESHOLD_LOW)
-    p.add_argument("--threshold-high", type=float, default=DEFAULT_THRESHOLD_HIGH)
+    p.add_argument("--model", default=DEFAULT_FAST_MODEL, help="(fast mode) HF id of scoring model")
+    p.add_argument("--threshold-low", type=float, default=None)
+    p.add_argument("--threshold-high", type=float, default=None)
     p.add_argument("--json", action="store_true", help="emit the full report as JSON")
     args = p.parse_args(argv)
+
+    if args.threshold_low is None:
+        args.threshold_low = FAST_THRESHOLD_LOW if args.mode == "fast" else DEFAULT_THRESHOLD_LOW
+    if args.threshold_high is None:
+        args.threshold_high = FAST_THRESHOLD_HIGH if args.mode == "fast" else DEFAULT_THRESHOLD_HIGH
 
     text = sys.stdin.read() if args.input == "-" else open(args.input).read()
     if not text.strip():
@@ -77,11 +90,14 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     console = Console(stderr=True)
-    with console.status("loading model pair (first run downloads weights)..."):
-        pair = ModelPair(observer_name=args.observer, performer_name=args.performer)
+    with console.status("loading models (first run downloads weights)..."):
+        if args.mode == "fast":
+            scorer = FastModel(model_name=args.model)
+        else:
+            scorer = ModelPair(observer_name=args.observer, performer_name=args.performer)
     with console.status("scoring..."):
         report = analyze(
-            text, pair,
+            text, scorer,
             threshold_low=args.threshold_low,
             threshold_high=args.threshold_high,
         )

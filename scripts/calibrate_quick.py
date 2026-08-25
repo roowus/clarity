@@ -64,14 +64,21 @@ def pct(values: list[float], p: float) -> float:
 
 
 def main() -> None:
-    pair = ModelPair()
-    print(f"device: {pair.device}")
+    import sys
+
+    mode = "fast" if "--mode" in sys.argv and "fast" in sys.argv else "binoculars"
+    if mode == "fast":
+        from clarity.models import FastModel
+        scorer = FastModel()
+    else:
+        scorer = ModelPair()
+    print(f"device: {scorer.device}  mode: {mode}")
     print(f"corpora: {len(AI_DOCS)} AI docs, ", end="")
     human = human_docs()
     print(f"{len(human)} human stdlib docstrings")
 
-    ai_scores = [analyze(t, pair).doc_score for t in AI_DOCS]
-    hu_scores = [analyze(t, pair).doc_score for t in human]
+    ai_scores = [analyze(t, scorer).doc_score for t in AI_DOCS]
+    hu_scores = [analyze(t, scorer).doc_score for t in human]
 
     print(f"\nAI   scores: min={min(ai_scores):.3f} mean={fmean(ai_scores):.3f} max={max(ai_scores):.3f}")
     print(f"human scores: min={min(hu_scores):.3f} mean={fmean(hu_scores):.3f} max={max(hu_scores):.3f}")

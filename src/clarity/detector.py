@@ -6,7 +6,6 @@ import statistics
 from dataclasses import dataclass, field
 
 from .evidence import Signal, sentence_signals
-from .models import ModelPair
 from .scoring import TokenScores, binoculars_score, mean_log_ppl
 from .sentences import SentenceSpan, map_sentences_to_tokens
 
@@ -17,6 +16,13 @@ from .sentences import SentenceSpan, map_sentences_to_tokens
 # Bigger pairs need recalibration; see docs/CALIBRATION.md for numbers and method.
 DEFAULT_THRESHOLD_LOW = 0.905
 DEFAULT_THRESHOLD_HIGH = 1.11
+
+# Fast mode (Fast-DetectGPT approximation) has its OWN score scale, calibrated
+# 2026-08-25 on the same corpora as binoculars (10 AI / 40 human): at 5% human
+# FPR it detected only 10% of AI docs vs binoculars' 40%. EXPERIMENTAL — use
+# only under RAM constraints. See fast_detect.py's honesty note, CALIBRATION.md.
+FAST_THRESHOLD_LOW = -41.86
+FAST_THRESHOLD_HIGH = 62.84
 
 MIN_RELIABLE_TOKENS = 50  # document verdicts below this are labeled unreliable
 BLEND_MIN_TOKENS = 30  # sentences shorter than this are blended with neighbors
@@ -43,7 +49,8 @@ class Report:
     n_tokens: int
     threshold_low: float
     threshold_high: float
-    sentences: list[SentenceReport]
+    mode: str = "binoculars"  # "binoculars" | "fast"
+    sentences: list[SentenceReport] = field(default_factory=list)
 
     def to_dict(self) -> dict:
         return {
@@ -52,6 +59,7 @@ class Report:
             "reliable": self.reliable,
             "truncated": self.truncated,
             "n_tokens": self.n_tokens,
+            "mode": self.mode,
             "thresholds": {"low": self.threshold_low, "high": self.threshold_high},
             "sentences": [
                 {
@@ -100,11 +108,12 @@ def _blended_span(
 
 def analyze(
     text: str,
-    pair: ModelPair,
+    scorer,  # ModelPair (binoculars) or FastModel (fast); duck-typed on .score_text()
     threshold_low: float = DEFAULT_THRESHOLD_LOW,
     threshold_high: float = DEFAULT_THRESHOLD_HIGH,
 ) -> Report:
-    scores, truncated = pair.score_text(text)
+    scores, truncated = scorer.score_text(text)
+    mode = getattr(scorer, "mode", "binoculars")
     n_tokens = scores.log_ppl.numel()
     doc_score = binoculars_score(scores)
     spans = map_sentences_to_tokens(text, scores.offsets)
@@ -158,5 +167,6 @@ def analyze(
         n_tokens=n_tokens,
         threshold_low=threshold_low,
         threshold_high=threshold_high,
+        mode=mode,
         sentences=sentences,
     )

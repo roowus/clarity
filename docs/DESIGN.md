@@ -1,6 +1,6 @@
 # clarity — Design
 
-Last updated: 2026-08-25 (v0.1.0 initial implementation)
+Last updated: 2026-08-25 (v0.2.0 — Phase 2: server, web UI, fast mode)
 
 ## Goal
 
@@ -24,24 +24,42 @@ Surveyed 2026-08-25; full citations at the bottom.
 ## Architecture
 
 ```
-text ──► ModelPair.score_text()          models.py
-         │  one forward pass per model, per-token log-probs kept
-         ▼
-      TokenScores {log_ppl[i], log_xppl[i], offsets[i]}   scoring.py
-         │
-         ├──► binoculars_score(full doc) ──► doc verdict
-         │
-         ├──► map_sentences_to_tokens()   sentences.py (pysbd, char-span accurate)
-         │        each sentence = a token span; re-aggregate the SAME arrays
-         ▼
+                      ┌────────────── frontends ──────────────┐
+                      │  cli.py        serve.py (FastAPI+UI)   │
+                      └───────────────────┬───────────────────┘
+                                          ▼
+                                    detector.analyze()
+                                          │
+              ┌───────────────────────────┴────────────────────┐
+              ▼                                                ▼
+   ModelPair.score_text()                        FastModel.score_text()   models.py
+   (2 models; paper-faithful)                    (1 model; EXPERIMENTAL —
+              │                                  sampling-free Fast-DetectGPT
+              │                                   approximation, fast_detect.py;
+              │                                   measured ~10% det @5% FPR vs
+              │                                   binoculars' ~40% — RAM-constrained
+              │                                   machines only)
+              ▼                                                │
+      TokenScores {log_ppl[i], log_xppl[i], offsets[i]} ◄──────┘   scoring.py
+              │        (fast mode: log_xppl carries its denominator)
+              ├──► binoculars_score(full doc) ──► doc verdict (per-mode thresholds)
+              │
+              ├──► map_sentences_to_tokens()   sentences.py (pysbd, char-span accurate)
+              │        each sentence = a token span; re-aggregate the SAME arrays
+              ▼
       per-sentence scores (+ neighbor blending)   detector.py
-         │
-         ▼
+              │
+              ▼
       evidence signals per flagged sentence       evidence.py
-         │
-         ▼
-      Report → CLI heatmap / JSON                 cli.py
+              │
+              ▼
+      Report → CLI heatmap / JSON / web heatmap+evidence panel
 ```
+
+The server (`serve.py`) loads models ONCE at startup and serves the single-page
+web UI from `clarity/web/index.html` at `/`. The `AnalyzeBody` pydantic model is
+module-level on purpose: FastAPI cannot resolve closure-local annotation classes,
+and the body field silently degrades to a query param (hit in testing).
 
 Key property: the models run **once**. Document score, sentence scores, and
 burstiness are all re-aggregations of the same per-token arrays, so sentence
@@ -97,8 +115,25 @@ highlighting is free.
    tokens ⇒ `reliable: false` and the CLI says so.
 
 8. **Ethics in the output path.** The CLI prints the fallibility caveat on
-   every run. The README documents the non-native-speaker false-positive
-   problem. Labels say "likely", never certainty.
+   every run; the web UI shows it in the verdict card. The README documents
+   the non-native-speaker false-positive problem. Labels say "likely", never
+   certainty.
+
+9. **Fast mode is an approximation and says so.** (Phase 2) The published
+   Fast-DetectGPT resamples ~50 token variants per position; ours computes a
+   sampling-free residual from one forward pass (`fast_detect.py` header has
+   the math and the honesty note). Empirically on our quick corpora it
+   separated far worse than binoculars (10% vs 40% detection at 5% FPR), so
+   it ships EXPERIMENTAL with its own scale and thresholds, and the UI/README
+   label it as weaker. A future Phase 3/4 task is to implement the true
+   sampling estimator and re-evaluate.
+
+10. **Server is local-first.** (Phase 2) `serve.py` binds 127.0.0.1 by
+    default, loads models once at startup, and serves the single-page UI
+    (`clarity/web/index.html`) — no build step, no CDN, system fonts, so the
+    UI works offline. The UI escapes all rendered text (`esc()`) — pasted
+    content is untrusted input. Dark-mode support via `prefers-color-scheme`;
+    keyboard: ⌘/Ctrl+Enter to analyze; `aria-live` status region.
 
 ## Testing strategy
 

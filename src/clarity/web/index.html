@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>clarity — evidence-first AI-text detection</title>
+<style>
+  :root {
+    --bg: #F8FAFC; --fg: #0F172A; --card: #FFFFFF; --border: #E2E8F0;
+    --muted-fg: #475569; --accent: #2563EB;
+    --ai-bg: #DC2626; --ai-fg: #FFFFFF;
+    --unc-bg: #FDE047; --unc-fg: #713F12;
+    --human-bg: transparent; --human-fg: inherit;
+    --radius: 10px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0B1120; --fg: #E2E8F0; --card: #1E293B; --border: #334155;
+      --muted-fg: #94A3B8;
+      --unc-bg: #854D0E; --unc-fg: #FEF3C7;
+      --ai-bg: #991B1B; --ai-fg: #FEE2E2;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px; line-height: 1.55;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  header h1 { font-size: 1.35rem; margin: 0 0 2px; letter-spacing: -0.01em; }
+  header p { margin: 0 0 20px; color: var(--muted-fg); font-size: 0.9rem; }
+  textarea {
+    width: 100%; min-height: 180px; resize: vertical;
+    background: var(--card); color: var(--fg);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 14px; font: inherit;
+  }
+  textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  button {
+    cursor: pointer; border: none; border-radius: var(--radius);
+    background: var(--accent); color: #fff; font-weight: 600; font-size: 0.95rem;
+    padding: 11px 22px; transition: opacity 0.2s ease, transform 0.15s ease;
+  }
+  button:hover { opacity: 0.9; }
+  button:active { transform: scale(0.98); }
+  button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  button[disabled] { opacity: 0.55; cursor: wait; }
+  .mode-toggle { display: inline-flex; border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  .mode-toggle label {
+    padding: 9px 14px; font-size: 0.85rem; cursor: pointer; user-select: none;
+    color: var(--muted-fg); transition: background 0.2s ease;
+  }
+  .mode-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+  .mode-toggle input:checked + span { color: var(--fg); font-weight: 600; }
+  .mode-toggle label:has(input:checked) { background: var(--card); color: var(--fg); }
+  .mode-toggle input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: -2px; display: inline-block; border-radius: 6px; }
+  .status { font-size: 0.88rem; color: var(--muted-fg); min-height: 1.3em; }
+  .status.error { color: #DC2626; font-weight: 500; }
+
+  /* verdict card */
+  #verdict {
+    display: none; margin-top: 26px; background: var(--card);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 18px 20px;
+  }
+  #verdict .label { font-size: 1.15rem; font-weight: 700; }
+  #verdict .meta { color: var(--muted-fg); font-size: 0.87rem; margin-top: 4px; }
+  .caveat {
+    margin-top: 10px; font-size: 0.83rem; color: var(--muted-fg);
+    border-left: 3px solid var(--border); padding-left: 10px;
+  }
+
+  /* heatmap */
+  #heatmap {
+    margin-top: 16px; background: var(--card); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 18px 20px; line-height: 1.9;
+  }
+  .sent { border-radius: 4px; padding: 1px 2px; transition: box-shadow 0.2s ease; }
+  .sent.ai { background: var(--ai-bg); color: var(--ai-fg); }
+  .sent.uncertain { background: var(--unc-bg); color: var(--unc-fg); }
+  .sent:hover { box-shadow: 0 0 0 2px var(--accent); cursor: default; }
+
+  /* evidence panel */
+  #evidence { display: none; margin-top: 14px; }
+  .ev-item {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 12px 16px; margin-bottom: 8px;
+  }
+  .ev-item .quote { font-size: 0.86rem; color: var(--muted-fg); font-style: italic;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .ev-item .score-chip { float: right; font-size: 0.78rem; font-weight: 600;
+    border-radius: 999px; padding: 2px 10px; }
+  .chip.ai { background: var(--ai-bg); color: var(--ai-fg); }
+  .chip.uncertain { background: var(--unc-bg); color: var(--unc-fg); }
+  .ev-item ul { margin: 8px 0 0; padding-left: 20px; }
+  .ev-item li { font-size: 0.88rem; margin-bottom: 4px; }
+  footer { margin-top: 28px; font-size: 0.8rem; color: var(--muted-fg); text-align: center; }
+  a { color: var(--accent); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>clarity</h1>
+    <p>Evidence-first AI-text detection · runs entirely on your machine</p>
+  </header>
+
+  <label for="input" style="position:absolute;left:-9999px">Text to analyze</label>
+  <textarea id="input" placeholder="Paste text to analyze (a few sentences or more — under ~50 tokens can't be reliably scored)..."></textarea>
+  <div class="controls">
+    <button id="go" type="button">Analyze</button>
+    <span class="mode-toggle" role="radiogroup" aria-label="Detection mode">
+      <label><input type="radio" name="mode" value="binoculars" checked><span>Binoculars (2 models)</span></label>
+      <label><input type="radio" name="mode" value="fast"><span>Fast (1 model)</span></label>
+    </span>
+    <span id="status" class="status" aria-live="polite"></span>
+  </div>
+
+  <section id="verdict" aria-live="polite">
+    <div class="label"></div>
+    <div class="meta"></div>
+    <div class="caveat">No detector is proof — treat this as a lead to investigate, never a
+      verdict on a person. False positives disproportionately affect non-native English writers.</div>
+  </section>
+
+  <section id="heatmap" aria-label="Sentence-level heatmap"></section>
+  <section id="evidence" aria-label="Evidence for flagged sentences"></section>
+
+  <footer>clarity v0.2.0 · Binoculars (Hans et al., ICML 2024) · local-first &amp; open source</footer>
+</div>
+<script>
+const $ = (id) => document.getElementById(id);
+const input = $("input"), go = $("go"), statusEl = $("status");
+const LABELS = {
+  ai: "Likely AI-generated",
+  uncertain: "Uncertain",
+  human: "Likely human-written",
+};
+
+function setMode(mode) {
+  document.querySelectorAll('.mode-toggle input').forEach(r => { r.checked = r.value === mode; });
+}
+document.querySelectorAll('.mode-toggle input').forEach(r =>
+  r.addEventListener('change', () => location.hash = 'mode=' + r.value));
+
+async function analyze() {
+  const text = input.value.trim();
+  if (!text) { statusEl.textContent = "Paste some text first."; return; }
+  const mode = document.querySelector('.mode-toggle input:checked').value;
+  go.disabled = true;
+  statusEl.className = "status";
+  statusEl.textContent = mode === "fast"
+    ? "Scoring (single model pass)…"
+    : "Scoring (two model passes)…";
+  try {
+    const res = await fetch("/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ text, mode }),
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({}));
+      throw new Error(detail.detail || `HTTP ${res.status}`);
+    }
+    render(await res.json());
+    statusEl.textContent = "";
+  } catch (err) {
+    statusEl.className = "status error";
+    statusEl.textContent = err.message === "Failed to fetch"
+      ? "Server unreachable — is clarity-server running?"
+      : "Error: " + err.message;
+  } finally {
+    go.disabled = false;
+  }
+}
+
+function esc(s) {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function render(r) {
+  const v = $("verdict");
+  v.style.display = "block";
+  v.querySelector(".label").textContent =
+    `${LABELS[r.doc_label]} — ${r.mode === "fast" ? "fast mode" : "binoculars"}`;
+  v.querySelector(".meta").textContent =
+    `score ${r.doc_score.toFixed(3)} · AI < ${r.thresholds.low}, human > ${r.thresholds.high} · ${r.n_tokens} tokens`;
+
+  const notes = [];
+  if (!r.reliable) notes.push(`only ${r.n_tokens} tokens — too short for a reliable verdict`);
+  if (r.truncated) notes.push("text was truncated at the scoring window");
+  v.querySelector(".caveat").textContent = notes.length
+    ? "⚠ " + notes.join("; ") + ". " : "";
+
+  const hm = $("heatmap");
+  hm.style.display = "block";
+  hm.innerHTML = "";
+  r.sentences.forEach(s => {
+    const span = document.createElement("span");
+    span.className = "sent " + s.label;
+    span.innerHTML = esc(s.text) + " ";
+    hm.appendChild(span);
+  });
+
+  const ev = $("evidence");
+  ev.style.display = "block";
+  ev.innerHTML = "";
+  const flagged = r.sentences.filter(s => s.signals.length);
+  if (flagged.length) {
+    flagged.forEach(s => {
+      const div = document.createElement("div");
+      div.className = "ev-item";
+      div.innerHTML =
+        `<span class="score-chip chip ${s.label}">${s.score.toFixed(3)}</span>` +
+        `<div class="quote">${esc(s.text)}</div><ul>` +
+        s.signals.map(g => `<li>${esc(g.detail)}</li>`).join("") +
+        `</ul>`;
+      ev.appendChild(div);
+    });
+  } else {
+    ev.innerHTML = '<div class="ev-item">No evidence signals fired — no sentence scored in the AI range.</div>';
+  }
+}
+
+go.addEventListener("click", analyze);
+input.addEventListener("keydown", e => {
+  if ((e.metaKey || e.ctrlKey) && e.key === "Enter") analyze();
+});
+const hashMode = (location.hash.match(/mode=(\w+)/) || [])[1];
+if (hashMode === "fast") setMode("fast");
+fetch("/api/health").then(h => h.json()).then(h => {
+  if (h.mode !== (hashMode || "binoculars")) setMode(h.mode);
+}).catch(() => {});
+// Shareable links: ?text=... prefills and auto-runs the analysis.
+const linkText = new URLSearchParams(location.search).get("text");
+if (linkText) { input.value = linkText; analyze(); }
+</script>
+</body>
+</html>

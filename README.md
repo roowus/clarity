@@ -47,24 +47,69 @@ First run downloads the default model pair (Qwen2.5-1.5B base + instruct,
 
 ## Usage
 
+Three interfaces over one engine:
+
+### 1. CLI
+
 ```bash
 clarity examples/ai-slop.txt    # rich terminal report (try both examples/)
 echo "some text" | clarity -    # stdin
 clarity essay.txt --json        # machine-readable full report
+clarity essay.txt --mode fast   # single-model mode (experimental; see below)
 clarity essay.txt --observer meta-llama/Llama-3.2-3B-Instruct \
                     --performer meta-llama/Llama-3.2-3B   # bring your own pair
 ```
 
-Python API:
+### 2. Web UI + local API
+
+```bash
+uv pip install -e ".[serve]"
+clarity-server                  # http://127.0.0.1:8390 — models load once, stay warm
+# options: --mode fast · --host 0.0.0.0 to expose beyond localhost · --port N
+```
+
+Then open the printed URL: paste text, hit Analyze (or ⌘/Ctrl+Enter), get the
+document verdict card, per-sentence heatmap, and evidence list. Programmatic
+clients hit the same API:
+
+```bash
+curl -X POST localhost:8390/analyze \
+     -H 'Content-Type: application/json' \
+     -d '{"text": "some text", "mode": "binoculars"}'
+# → full Report JSON (doc verdict + per-sentence scores/signals)
+curl localhost:8390/api/health   # model/device status
+```
+
+The server binds **127.0.0.1 by default** — this is a personal-analysis tool;
+pass `--host` only if you deliberately want it reachable from your network.
+
+### 3. Python
 
 ```python
-from clarity import ModelPair, analyze
+from clarity import ModelPair, FastModel, analyze
 report = analyze(open("essay.txt").read(), ModelPair())
 print(report.doc_label, report.doc_score)
 for s in report.sentences:
     if s.label == "ai":
         print(s.text, [g.detail for g in s.signals])
+
+fast_report = analyze(text, FastModel())  # 1-model experimental mode
 ```
+
+## Detection modes
+
+| | `binoculars` (default) | `fast` |
+| --- | --- | --- |
+| Models loaded | 2 (~6 GB fp16) | 1 (~3 GB) |
+| Method | Binoculars (paper-faithful) | sampling-free Fast-DetectGPT *approximation* |
+| Measured quality (default weights) | ~40% detection @ 5% human FPR | ~10% detection @ 5% human FPR |
+| Use when | always, unless RAM-constrained | memory-bound machines only |
+
+Fast mode is **experimental**: our approximation needs no generation passes,
+but that changes its operating characteristics vs the published method — its
+scores are on their own scale and its measured separation is far weaker.
+Both modes' thresholds come from the same quick calibration
+([docs/CALIBRATION.md](docs/CALIBRATION.md)).
 
 ## Bring your own models
 

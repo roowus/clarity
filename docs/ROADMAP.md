@@ -1,8 +1,8 @@
 # Roadmap
 
-Last updated: 2026-08-25
+Last updated: 2026-08-25 (v0.2.0 — Phase 2 complete)
 
-## Phase 1 — Core engine ✅ (v0.1.0, this release)
+## Phase 1 — Core engine ✅ (v0.1.0)
 - [x] Binoculars scoring (per-token, span-aggregatable) — `scoring.py`
 - [x] BYO model pair with shared-tokenizer guard; Qwen2.5-1.5B default — `models.py`
 - [x] Sentence segmentation → token spans, neighbor blending — `sentences.py`, `detector.py`
@@ -11,12 +11,17 @@ Last updated: 2026-08-25
 - [x] Unit tests for all model-free layers; smoke script for the model path
 - [x] Docs: README, DESIGN, CALIBRATION, ROADMAP
 
-## Phase 2 — Serving & UI
-- [ ] FastAPI server (`clarity serve`): POST /analyze → Report JSON; model pair
-      loaded once, warm
-- [ ] Web UI: paste text → heatmap highlighting, hover a sentence for its
-      signals; static frontend hitting the local API
-- [ ] Fast-DetectGPT single-model mode (`--mode fast`) for low-RAM machines
+## Phase 2 — Serving & UI ✅ (v0.2.0)
+- [x] FastAPI server (`clarity-server`): POST /analyze → Report JSON,
+      GET /api/health, models loaded once at startup, localhost-first — `serve.py`
+- [x] Web UI at `/`: paste text → verdict card + sentence heatmap + evidence
+      list; single static page (no build step, offline-capable, dark mode,
+      ⌘/Ctrl+Enter, aria-live) — `web/index.html`
+- [x] Single-model mode (`--mode fast` CLI + server flag) — ships
+      EXPERIMENTAL: sampling-free approximation measured at ~10% detection
+      @ 5% FPR vs binoculars' ~40% (CALIBRATION.md); use only when RAM-bound
+- [x] E2E verified: /api/health, /analyze (full Report JSON incl. per-sentence
+      signals), and / (UI HTML) all exercised against a live server
 
 ## Phase 3 — Rigorous calibration & eval (the credibility phase)
 - [x] Quick provisional calibration shipped (2026-08-25):
@@ -38,6 +43,8 @@ Last updated: 2026-08-25
 - [ ] Optional LLM *verbalizer*: turns computed signals into prose. Hard rule
       from DESIGN.md: it may only restate computed evidence, never judge
 - [ ] PDF/docx ingestion
+- [ ] True Fast-DetectGPT sampling estimator (~50 generations/doc) to replace
+      the weak approximation, then re-measure fast-mode thresholds
 
 ## Non-goals
 - Hosted service with our GPUs (this is a local-first/self-host project)

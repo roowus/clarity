@@ -1,12 +1,12 @@
-# clairity
+# clarity
 
 **Evidence-first, open-source AI-text detection.** Paste text, get a calibrated
 score, and — unlike black-box percentage detectors — see *which sentences* look
 machine-generated and *why*, with every reason backed by a measurable statistic.
 
 ```
-$ clairity essay.txt
-╭──────────────────────────── clairity ────────────────────────────╮
+$ clarity essay.txt
+╭──────────────────────────── clarity ────────────────────────────╮
 │ Document: likely AI-generated (score 0.812; AI < 0.85, human > 0.92) │
 ╰───────────────────────────────────────────────────────────────────╯
 <text with per-sentence red/yellow highlighting>
@@ -21,14 +21,14 @@ Why flagged:
 
 ## How it works
 
-clairity implements **[Binoculars](https://arxiv.org/abs/2401.12070)** (Hans et
+clarity implements **[Binoculars](https://arxiv.org/abs/2401.12070)** (Hans et
 al., ICML 2024), a zero-shot detection method: two closely related language
 models (a base model and its instruct fine-tune) both score the text, and the
 ratio of perplexity to cross-perplexity separates human from machine writing.
 No detection-specific training; in the paper this detects >90% of
 ChatGPT-generated text at a 0.01% false-positive rate.
 
-On top of the document score, clairity re-aggregates the same per-token
+On top of the document score, clarity re-aggregates the same per-token
 log-probabilities per sentence (with neighbor-blending for short sentences,
 which are individually too noisy to score) and attaches **evidence signals**:
 low Binoculars score, low local burstiness, AI-idiom phrases, short-span
@@ -38,7 +38,7 @@ the reasoning behind every choice.
 ## Install
 
 ```bash
-git clone https://github.com/roowus/clairity && cd clairity
+git clone https://github.com/roowus/clarity && cd clarity
 uv venv && uv pip install -e .
 ```
 
@@ -48,17 +48,17 @@ First run downloads the default model pair (Qwen2.5-1.5B base + instruct,
 ## Usage
 
 ```bash
-clairity examples/ai-slop.txt    # rich terminal report (try both examples/)
-echo "some text" | clairity -    # stdin
-clairity essay.txt --json        # machine-readable full report
-clairity essay.txt --observer meta-llama/Llama-3.2-3B-Instruct \
+clarity examples/ai-slop.txt    # rich terminal report (try both examples/)
+echo "some text" | clarity -    # stdin
+clarity essay.txt --json        # machine-readable full report
+clarity essay.txt --observer meta-llama/Llama-3.2-3B-Instruct \
                     --performer meta-llama/Llama-3.2-3B   # bring your own pair
 ```
 
 Python API:
 
 ```python
-from clairity import ModelPair, analyze
+from clarity import ModelPair, analyze
 report = analyze(open("essay.txt").read(), ModelPair())
 print(report.doc_label, report.doc_score)
 for s in report.sentences:
@@ -87,7 +87,7 @@ see [docs/CALIBRATION.md](docs/CALIBRATION.md).
 - False positives are real and **disproportionately hit non-native English
   writers** (documented across the literature, including for commercial tools).
 - Paraphrasing/humanizer tools reduce detection rates for every known method.
-- Short texts (< ~50 tokens) cannot be reliably scored; clairity says so
+- Short texts (< ~50 tokens) cannot be reliably scored; clarity says so
   rather than guessing.
 - English-centric: sentence splitting and the idiom list are English-only for
   now; the Binoculars score itself is language-agnostic in principle but

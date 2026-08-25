@@ -1,4 +1,4 @@
-# clairity — Design
+# clarity — Design
 
 Last updated: 2026-08-25 (v0.1.0 initial implementation)
 

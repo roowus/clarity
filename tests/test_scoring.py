@@ -1,7 +1,7 @@
 import pytest
 import torch
 
-from clairity.scoring import binoculars_score, mean_log_ppl, token_scores
+from clarity.scoring import binoculars_score, mean_log_ppl, token_scores
 
 
 def _fake(n=10, vocab=50, seed=0):

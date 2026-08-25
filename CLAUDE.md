@@ -1,4 +1,4 @@
-# clairity — contributor rules
+# clarity — contributor rules
 
 - **Docs rule (mandatory):** any behavioral change ships the matching doc
   update in the SAME commit — README.md for user-facing behavior, docs/DESIGN.md

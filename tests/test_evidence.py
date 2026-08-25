@@ -1,4 +1,4 @@
-from clairity.evidence import sentence_signals
+from clarity.evidence import sentence_signals
 
 
 def _base(**kw):

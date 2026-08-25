@@ -59,13 +59,13 @@ the default). For serious use, the manual procedure:
 # 1. Gather ≥500 known-human docs (pre-2020 text is safest) into human/*.txt
 # 2. Score them:
 for f in human/*.txt; do
-  clairity "$f" --json --observer YOUR_OBS --performer YOUR_PERF \
+  clarity "$f" --json --observer YOUR_OBS --performer YOUR_PERF \
     | jq .doc_score
 done > human_scores.txt
 # 3. threshold_low = the 5th percentile of human_scores.txt
 # 4. Repeat with known-AI docs to check separation; threshold_high = a value
 #    above which ~no AI docs land (e.g. 99th percentile of AI scores).
-clairity essay.txt --threshold-low <yours> --threshold-high <yours>
+clarity essay.txt --threshold-low <yours> --threshold-high <yours>
 ```
 
 Store per-pair calibrations you trust in `calibrations/` (JSON:

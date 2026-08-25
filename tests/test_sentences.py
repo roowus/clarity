@@ -1,4 +1,4 @@
-from clairity.sentences import map_sentences_to_tokens, split_sentences
+from clarity.sentences import map_sentences_to_tokens, split_sentences
 
 
 def test_split_covers_text():

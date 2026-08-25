@@ -12,7 +12,7 @@ Last updated: 2026-08-25
 - [x] Docs: README, DESIGN, CALIBRATION, ROADMAP
 
 ## Phase 2 — Serving & UI
-- [ ] FastAPI server (`clairity serve`): POST /analyze → Report JSON; model pair
+- [ ] FastAPI server (`clarity serve`): POST /analyze → Report JSON; model pair
       loaded once, warm
 - [ ] Web UI: paste text → heatmap highlighting, hover a sentence for its
       signals; static frontend hitting the local API
